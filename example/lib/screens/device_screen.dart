@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../widgets/service_tile.dart';
 import '../widgets/characteristic_tile.dart';
@@ -26,6 +28,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
   bool _isDiscoveringServices = false;
   bool _isConnecting = false;
   bool _isDisconnecting = false;
+  bool _isMeasuring = false;
+
+  List<FlSpot> _chartData = [];
+  double _time = 0;
+  BluetoothCharacteristic? _targetCharacteristic;
 
   late StreamSubscription<BluetoothConnectionState> _connectionStateSubscription;
   late StreamSubscription<bool> _isConnectingSubscription;
@@ -82,6 +89,47 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   bool get isConnected {
     return _connectionState == BluetoothConnectionState.connected;
+  }
+
+  void startMeasurement() async {
+    if (_targetCharacteristic != null) {
+      try {
+        // BLEデバイスに「123」という文字列を送信
+        await _targetCharacteristic!.write(utf8.encode("123"), withoutResponse: true);
+        enableNotification(_targetCharacteristic!);
+        setState(() {
+          _isMeasuring = true;
+        });
+      } catch (e) {
+        Snackbar.show(ABC.c, prettyException("Measurement Start Error:", e), success: false);
+      }
+    }
+  }
+
+  void enableNotification(BluetoothCharacteristic characteristic) async {
+    try {
+      await characteristic.setNotifyValue(true);
+      characteristic.value.listen((value) {
+        if (value.isNotEmpty) {
+          try {
+            double receivedValue = double.parse(utf8.decode(value));
+            setState(() {
+              _chartData.add(FlSpot(_time, receivedValue));
+              _time += 1;
+              if (_chartData.length > 20) {
+                _chartData.removeAt(0);
+              }
+            });
+          } catch (e) {
+            // 文字列などが送られてきた場合、エラーをスキップ
+            print('Invalid data received: $e');
+          }
+        }
+      });
+      Snackbar.show(ABC.c, "Notification enabled", success: true);
+    } catch (e) {
+      Snackbar.show(ABC.c, prettyException("Notification Error:", e), success: false);
+    }
   }
 
   Future onConnectPressed() async {
@@ -152,10 +200,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
     return _services
         .map(
           (s) => ServiceTile(
-            service: s,
-            characteristicTiles: s.characteristics.map((c) => _buildCharacteristicTile(c)).toList(),
-          ),
-        )
+        service: s,
+        characteristicTiles: s.characteristics.map((c) => _buildCharacteristicTile(c)).toList(),
+      ),
+    )
         .toList();
   }
 
@@ -163,20 +211,50 @@ class _DeviceScreenState extends State<DeviceScreen> {
     return CharacteristicTile(
       characteristic: c,
       descriptorTiles: c.descriptors.map((d) => DescriptorTile(descriptor: d)).toList(),
+      // onTap: () {
+      //   setState(() {
+      //     _targetCharacteristic = c;
+      //   });
+      // },
     );
   }
 
-  Widget buildSpinner(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14.0),
-      child: AspectRatio(
-        aspectRatio: 1.0,
-        child: CircularProgressIndicator(
-          backgroundColor: Colors.black12,
-          color: Colors.black26,
+  Widget buildLineChart() {
+    return LineChart(
+      LineChartData(
+        lineBarsData: [
+          LineChartBarData(
+            spots: _chartData,
+            isCurved: true,
+            barWidth: 2,
+            //colors: [Colors.blue],
+            belowBarData: BarAreaData(show: false),
+          ),
+        ],
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: true),
+          ),
         ),
+        borderData: FlBorderData(show: true),
+        gridData: FlGridData(show: false),
       ),
     );
+  }
+
+  Widget buildConnectButton(BuildContext context) {
+    return Row(children: [
+      if (_isConnecting || _isDisconnecting) CircularProgressIndicator(),
+      TextButton(
+          onPressed: _isConnecting ? onCancelPressed : (isConnected ? onDisconnectPressed : onConnectPressed),
+          child: Text(
+            _isConnecting ? "CANCEL" : (isConnected ? "DISCONNECT" : "CONNECT"),
+            style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.white),
+          ))
+    ]);
   }
 
   Widget buildRemoteId(BuildContext context) {
@@ -228,16 +306,14 @@ class _DeviceScreenState extends State<DeviceScreen> {
         ));
   }
 
-  Widget buildConnectButton(BuildContext context) {
-    return Row(children: [
-      if (_isConnecting || _isDisconnecting) buildSpinner(context),
-      TextButton(
-          onPressed: _isConnecting ? onCancelPressed : (isConnected ? onDisconnectPressed : onConnectPressed),
-          child: Text(
-            _isConnecting ? "CANCEL" : (isConnected ? "DISCONNECT" : "CONNECT"),
-            style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.white),
-          ))
-    ]);
+  Widget buildMeasureButton() {
+    return Visibility(
+      visible: isConnected && !_isMeasuring,
+      child: ElevatedButton(
+        onPressed: startMeasurement,
+        child: const Text("計測を始める"),
+      ),
+    );
   }
 
   @override
@@ -260,6 +336,14 @@ class _DeviceScreenState extends State<DeviceScreen> {
               ),
               buildMtuTile(context),
               ..._buildServiceTiles(context, widget.device),
+              SizedBox(height: 20),
+              buildMeasureButton(),
+              if (_isMeasuring)
+                Container(
+                  padding: EdgeInsets.all(16),
+                  height: 300,
+                  child: buildLineChart(),
+                ),
             ],
           ),
         ),
