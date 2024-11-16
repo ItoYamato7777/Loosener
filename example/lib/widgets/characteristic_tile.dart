@@ -1,18 +1,24 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import "../utils/snackbar.dart";
-
 import "descriptor_tile.dart";
 
 class CharacteristicTile extends StatefulWidget {
   final BluetoothCharacteristic characteristic;
   final List<DescriptorTile> descriptorTiles;
+  final VoidCallback? onTap; // onTap プロパティを追加
 
-  const CharacteristicTile({Key? key, required this.characteristic, required this.descriptorTiles}) : super(key: key);
+  const CharacteristicTile({
+    Key? key,
+    required this.characteristic,
+    required this.descriptorTiles,
+    this.onTap, // コンストラクタに onTap を追加
+  }) : super(key: key);
 
   @override
   State<CharacteristicTile> createState() => _CharacteristicTileState();
@@ -59,7 +65,7 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
 
   Future onWritePressed() async {
     try {
-      await c.write(_getRandomBytes(), withoutResponse: c.properties.writeWithoutResponse);
+      await c.write(utf8.encode("request_wifi_list"));//(_getRandomBytes(), withoutResponse: c.properties.writeWithoutResponse);
       Snackbar.show(ABC.c, "Write: Success", success: true);
       if (c.properties.read) {
         await c.read();
@@ -72,7 +78,7 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
 
   Future onSubscribePressed() async {
     try {
-      String op = c.isNotifying == false ? "Subscribe" : "Unubscribe";
+      String op = c.isNotifying == false ? "Subscribe" : "Unsubscribe";
       await c.setNotifyValue(c.isNotifying == false);
       Snackbar.show(ABC.c, "$op : Success", success: true);
       if (c.properties.read) {
@@ -162,6 +168,7 @@ class _CharacteristicTileState extends State<CharacteristicTile> {
         ),
         subtitle: buildButtonRow(context),
         contentPadding: const EdgeInsets.all(0.0),
+        onTap: widget.onTap, // onTap コールバックを追加
       ),
       children: widget.descriptorTiles,
     );

@@ -14,6 +14,8 @@ dependencies:
 
   fl_chart: ^0.69.0
 
+  flutter_launcher_icons: ^0.14.1
+
   flutter_blue_plus:
     # Note: We use a path dependency because the example app & plugin are bundled together.
     # In *your* app you should use ^1.17.3 or similar 

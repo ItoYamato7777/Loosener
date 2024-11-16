@@ -10,6 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/fuck_you.jpg"
 
 flutter:
   plugin:
@@ -21,3 +27,4 @@ flutter:
         pluginClass: FlutterBluePlusPlugin
       macos:
         pluginClass: FlutterBluePlusPlugin
+

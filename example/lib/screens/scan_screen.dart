@@ -115,16 +115,16 @@ class _ScanScreenState extends State<ScanScreen> {
     return _systemDevices
         .map(
           (d) => SystemDeviceTile(
-            device: d,
-            onOpen: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => DeviceScreen(device: d),
-                settings: RouteSettings(name: '/DeviceScreen'),
-              ),
-            ),
-            onConnect: () => onConnectPressed(d),
+        device: d,
+        onOpen: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => DeviceScreen(device: d),
+            settings: RouteSettings(name: '/DeviceScreen'),
           ),
-        )
+        ),
+        onConnect: () => onConnectPressed(d),
+      ),
+    )
         .toList();
   }
 
@@ -132,10 +132,10 @@ class _ScanScreenState extends State<ScanScreen> {
     return _scanResults
         .map(
           (r) => ScanResultTile(
-            result: r,
-            onTap: () => onConnectPressed(r.device),
-          ),
-        )
+        result: r,
+        onTap: () => onConnectPressed(r.device),
+      ),
+    )
         .toList();
   }
 
