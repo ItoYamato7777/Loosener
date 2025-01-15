@@ -22,6 +22,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
   List<BluetoothService> _services = [];
   List<double> velocityData = [];
   List<double> pressureData = [];
+  /*変数を増やした。
+  List<double> velocityData = [];
+  List<double> pressureData0 = [];
+  List<double> pressureData1 = [];
+   */
   double maxYValue = 150;
   final Guid targetServiceUUID = Guid("12345678-1234-5678-1234-56789abcdef0");
   final Guid targetCharacteristicUUID = Guid("abcdef12-3456-7890-1234-56789abcdef0");
@@ -55,7 +60,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
           .split(',')
           .map((item) => double.parse(item.trim()))
           .toList();
-
       List<double> oddList = [];
       List<double> evenList = [];
       for (int i = 0; i < dataList.length; i++) {
@@ -65,6 +69,19 @@ class _DeviceScreenState extends State<DeviceScreen> {
           evenList.add(dataList[i]);
         }
       }
+      /*3で割った余りが0のところに圧力データ1、余りが1のところに圧力データ2、余りが2のところに速度データを格納させる。
+      List<double> mod3_0List = [];
+      List<double> mod3_1List = [];
+      List<double> mod3_2List = [];
+      for (int i = 0; i < dataList.length; i++) {
+        if (i % 3 == 0) {
+          mod3_0List.add(dataList[i]);
+        } elseif{
+          mod3_1List.add(dataList[i]);
+        }
+          mod3_2List.add(dataList[i]);
+      }
+      */
 
       setState(() {
         double newMax = maxYValue;
@@ -81,10 +98,35 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
         maxYValue = newMax;
       });
+      /*増えた3つの変数のうちの最大値
+      setState(() {
+        double newMax = maxYValue;
+
+        if (mod3_0List.isNotEmpty) {
+          double oddMax = oddList.reduce((a, b) => a > b ? a : b);
+          newMax = newMax > oddMax ? newMax : oddMax;
+        }
+
+        if (mod3_1List.isNotEmpty) {
+          double evenMax = evenList.reduce((a, b) => a > b ? a : b);
+          newMax = newMax > evenMax ? newMax : evenMax;
+        }
+        if (mod3_2List.isNotEmpty) {
+          double evenMax = evenList.reduce((a, b) => a > b ? a : b);
+          newMax = newMax > evenMax ? newMax : evenMax;
+        }
+        maxYValue = newMax;
+      });
+       */
 
       return {
         "velocityList": oddList,
         "pressureList": evenList,
+        /*増えた変数
+        "velocityList": mod3_0List,
+        "pressureList0": mod3_1List,
+        "pressureList1": mod3_2List,
+         */
       };
     } catch (e) {
       print("Error processing data: $e");
@@ -92,12 +134,23 @@ class _DeviceScreenState extends State<DeviceScreen> {
         "velocityList": [],
         "pressureList": [],
       };
+      /*
+      return {
+        "velocityList": [],
+        "pressureList0": [],
+        "pressureList1": [],
+       */
     }
   }
 
   Future<void> subscribeToNotifications() async {
     velocityData = [];
     pressureData = [];
+    /*
+    velocityData = [];
+    pressureData0 = [];
+    pressureData1 = [];
+     */
     try {
       _services = await widget.device.discoverServices();
       final BluetoothService targetService = _services.firstWhere((s) => s.uuid == targetServiceUUID);
@@ -119,6 +172,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
           velocityData.addAll(processedData["velocityList"] ?? []);
           pressureData.addAll(processedData["pressureList"] ?? []);
         });
+        /*
+        setState(() {
+          velocityData.addAll(processedData["velocityList"] ?? []);
+          pressureData0.addAll(processedData["pressureList0"] ?? []);
+          pressureData1.addAll(processedData["pressureList1"] ?? []);
+        });
+         */
       });
 
       print("通知購読を開始しました。");
@@ -243,6 +303,95 @@ class _DeviceScreenState extends State<DeviceScreen> {
       ),
     );
   }
+/*3つに増えた
+Widget buildGraph(double screenWidth, List<double> velocityList, List<double> pressureList0, List<double> pressureList1) {
+    return SizedBox(
+      width: screenWidth * 0.95,
+      height: screenWidth * 0.95 * 0.65,
+      child: LineChart(
+        LineChartData(
+          lineBarsData: [
+            LineChartBarData(
+              spots: velocityList.asMap().entries.map((entry) {
+                int index = entry.key;
+                double value = entry.value;
+                return FlSpot(index.toDouble(), value);
+              }).toList(),
+              isCurved: false,
+              color: Colors.blue,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: pressureList0.asMap().entries.map((entry) {
+                int index = entry.key;
+                double value = entry.value;
+                return FlSpot(index.toDouble(), value);
+              }).toList(),
+              isCurved: false,
+              color: Colors.red,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: pressureList1.asMap().entries.map((entry) {
+                int index = entry.key;
+                double value = entry.value;
+                return FlSpot(index.toDouble(), value);
+              }).toList(),
+              isCurved: false,
+              color: Colors.red,
+              dotData: FlDotData(show: false),
+            ),
+          ],
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              axisNameWidget: const Text('[km/h]', style: TextStyle(fontSize: 12)),
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 20,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            rightTitles: AxisTitles(
+              axisNameWidget: const Text('[kg]', style: TextStyle(fontSize: 12)),
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 20,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              axisNameWidget: const Text('時間経過', style: TextStyle(fontSize: 12)),
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 10,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+          ),
+          maxY: maxYValue,
+          minY: 0,
+          borderData: FlBorderData(show: true),
+        ),
+      ),
+    );
+  }
+ */
+
 
   // 過去データを見るボタンを追加
   Widget buildViewPastDataButton() {
@@ -263,6 +412,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
       dateTime: DateTime.now(),
       velocityData: velocityData,
       pressureData: pressureData,
+      /*
+      velocityData: velocityData,
+      pressureData0: pressureData0,
+      pressureData1: pressureData1,
+       */
     );
 
     final box = Hive.box<MeasurementData>('measurementDataBox');
@@ -281,6 +435,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
           velocityData = [];
           pressureData = [];
         });
+        /*
+        setState(() {
+          velocityData = [];
+          pressureData0 = [];
+          pressureData1 = [];
+        });
+         */
       },
       child: const Text("計測を終了して保存"),
     );
