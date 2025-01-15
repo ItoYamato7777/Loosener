@@ -1,21 +1,19 @@
-// Copyright 2017-2023, Charles Weinberger & Paul DeMarco.
-// All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
+// main.dart
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-// import 'package:hive/hive.dart';
-// import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_flutter/hive_flutter.dart'; // 追加
+import 'data/measurement_data.dart'; // 追加
 
 import 'screens/bluetooth_off_screen.dart';
 import 'screens/scan_screen.dart';
 
-// import '/screens/device_screen.dart';
-// import '/data/measurement_data.dart';
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 追加
+  await Hive.initFlutter(); // 追加
+  Hive.registerAdapter(MeasurementDataAdapter()); // 追加
+  await Hive.openBox<MeasurementData>('measurementDataBox'); // 追加
 
-void main() {
   FlutterBluePlus.setLogLevel(LogLevel.verbose, color: true);
   runApp(const FlutterBlueApp());
 }

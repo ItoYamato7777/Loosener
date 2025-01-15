@@ -1,8 +1,12 @@
+// device_screen.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:hive/hive.dart';
+import '../data/measurement_data.dart';
+import 'previous_data_chart.dart'; // 追加
 
 class DeviceScreen extends StatefulWidget {
   final BluetoothDevice device;
@@ -16,9 +20,8 @@ class DeviceScreen extends StatefulWidget {
 class _DeviceScreenState extends State<DeviceScreen> {
   BluetoothConnectionState _connectionState = BluetoothConnectionState.disconnected;
   List<BluetoothService> _services = [];
-  Map<String, List<double>> processedDataMap = {};
   List<double> velocityData = [];
-  List<double> pressureData =[];
+  List<double> pressureData = [];
   double maxYValue = 150;
   final Guid targetServiceUUID = Guid("12345678-1234-5678-1234-56789abcdef0");
   final Guid targetCharacteristicUUID = Guid("abcdef12-3456-7890-1234-56789abcdef0");
@@ -46,43 +49,39 @@ class _DeviceScreenState extends State<DeviceScreen> {
     return _connectionState == BluetoothConnectionState.connected;
   }
 
-  /// BLEデータを処理してカンマ区切りの文字列を奇数・偶数で分けた数値リストに変換
   Map<String, List<double>> processReceivedData(String rawValue) {
     try {
-      // カンマ区切りで分割し、数値に変換
       List<double> dataList = rawValue
           .split(',')
           .map((item) => double.parse(item.trim()))
           .toList();
-      // 奇数と偶数リストを作成
+
       List<double> oddList = [];
       List<double> evenList = [];
       for (int i = 0; i < dataList.length; i++) {
         if (i % 2 == 0) {
-          oddList.add(dataList[i]); // 0ベースで偶数インデックスは奇数個目
+          oddList.add(dataList[i]);
         } else {
-          evenList.add(dataList[i]); // 1ベースで偶数インデックス
+          evenList.add(dataList[i]);
         }
       }
-      // oddListとevenListの中の最大値をmaxYValueに代入する
+
       setState(() {
-        double newMax = maxYValue; // 現在の maxYValue を保持
+        double newMax = maxYValue;
 
         if (oddList.isNotEmpty) {
           double oddMax = oddList.reduce((a, b) => a > b ? a : b);
-          newMax = newMax > oddMax ? newMax : oddMax; // より大きい値を選ぶ
+          newMax = newMax > oddMax ? newMax : oddMax;
         }
 
         if (evenList.isNotEmpty) {
           double evenMax = evenList.reduce((a, b) => a > b ? a : b);
-          newMax = newMax > evenMax ? newMax : evenMax; // より大きい値を選ぶ
+          newMax = newMax > evenMax ? newMax : evenMax;
         }
 
-        maxYValue = newMax; // 更新された最大値を代入
+        maxYValue = newMax;
       });
 
-
-      // 結果をMapで返す
       return {
         "velocityList": oddList,
         "pressureList": evenList,
@@ -96,47 +95,37 @@ class _DeviceScreenState extends State<DeviceScreen> {
     }
   }
 
-
   Future<void> subscribeToNotifications() async {
-    processedDataMap = {};
     velocityData = [];
-    pressureData =[];
+    pressureData = [];
     try {
       _services = await widget.device.discoverServices();
       final BluetoothService targetService = _services.firstWhere((s) => s.uuid == targetServiceUUID);
       final BluetoothCharacteristic characteristic =
       targetService.characteristics.firstWhere((c) => c.uuid == targetCharacteristicUUID);
-      //計測開始の要求を送信
+
+      // 計測開始の要求を送信
       await characteristic.write(utf8.encode("Start Measurement"));
       await characteristic.setNotifyValue(true);
+
       characteristic.value.listen((value) {
         final String decodedValue = utf8.decode(value);
         print("Notification Received (Decoded): $decodedValue");
 
-        // データを処理してリストに変換
-        Map<String, List<double>> processedDataMap = processReceivedData(decodedValue);
+        Map<String, List<double>> processedData = processReceivedData(decodedValue);
 
-        print("受け取ったデータを処理したもの  $processedDataMap");
-
-        // 一時的なリストにデータを保存
-        List<double> tempVelocityData = processedDataMap["velocityList"] ?? [];
-        List<double> tempPressureData = processedDataMap["pressureList"] ?? [];
-
-        // グラフデータを更新（メインリストにマージ）
+        // データを追加
         setState(() {
-          velocityData.addAll(tempVelocityData);
-          pressureData.addAll(tempPressureData);
+          velocityData.addAll(processedData["velocityList"] ?? []);
+          pressureData.addAll(processedData["pressureList"] ?? []);
         });
-
-        print("velocity Data: $velocityData");
-        print("pressure Data: $pressureData");
       });
+
       print("通知購読を開始しました。");
     } catch (e) {
       print("Notification Subscription Error: $e");
     }
   }
-
 
   Future<void> onConnectPressed() async {
     try {
@@ -159,17 +148,18 @@ class _DeviceScreenState extends State<DeviceScreen> {
   Widget buildConnectButton(BuildContext context) {
     return Row(children: [
       TextButton(
-          onPressed: isConnected ? onDisconnectPressed : onConnectPressed,
-          child: Text(
-            isConnected ? "DISCONNECT" : "CONNECT",
-            style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.white),
-          ))
+        onPressed: isConnected ? onDisconnectPressed : onConnectPressed,
+        child: Text(
+          isConnected ? "DISCONNECT" : "CONNECT",
+          style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.white),
+        ),
+      )
     ]);
   }
 
   Widget buildMeasureButton() {
     return Visibility(
-      //visible: isConnected,
+      visible: isConnected,
       child: ElevatedButton(
         onPressed: subscribeToNotifications,
         child: const Text("計測を始める"),
@@ -192,7 +182,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
               }).toList(),
               isCurved: false,
               color: Colors.blue,
-              dotData: FlDotData(show: false), // 点を非表示に設定
+              dotData: FlDotData(show: false),
             ),
             LineChartBarData(
               spots: pressureList.asMap().entries.map((entry) {
@@ -202,7 +192,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
               }).toList(),
               isCurved: false,
               color: Colors.red,
-              dotData: FlDotData(show: false), // 点を非表示に設定
+              dotData: FlDotData(show: false),
             ),
           ],
           titlesData: FlTitlesData(
@@ -254,29 +244,80 @@ class _DeviceScreenState extends State<DeviceScreen> {
     );
   }
 
+  // 過去データを見るボタンを追加
+  Widget buildViewPastDataButton() {
+    return ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PreviousDataChart()),
+        );
+      },
+      child: const Text("過去データを見る"),
+    );
+  }
+
+  // データを保存する関数を追加
+  Future<void> saveMeasurementData() async {
+    final measurementData = MeasurementData(
+      dateTime: DateTime.now(),
+      velocityData: velocityData,
+      pressureData: pressureData,
+    );
+
+    final box = Hive.box<MeasurementData>('measurementDataBox');
+    await box.add(measurementData);
+    print("データを保存しました。");
+  }
+
+  // 計測を終了し、データを保存するボタンを追加
+  Widget buildStopAndSaveButton() {
+    return ElevatedButton(
+      onPressed: () async {
+        // 計測終了処理をここに記述（必要に応じて）
+        await saveMeasurementData();
+        // データをクリア
+        setState(() {
+          velocityData = [];
+          pressureData = [];
+        });
+      },
+      child: const Text("計測を終了して保存"),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.device.platformName),
+        title: Text(widget.device.name),
         actions: [buildConnectButton(context)],
       ),
-      body: Align( // Column全体の横方向の配置を中央揃えにする
-        alignment: Alignment.topCenter, // 上部中央に配置
+      body: Align(
+        alignment: Alignment.topCenter,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start, // 縦方向は上から順に配置
-          crossAxisAlignment: CrossAxisAlignment.center, // 横方向は中央揃え
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 20), // AppBarとボタン間に余白を追加
+            SizedBox(height: 20),
             isConnected
-                ? buildMeasureButton() // isConnected が true の場合
-                : const Text( // isConnected が false の場合
-                  "つながっていません",
-                  style: TextStyle(fontSize: 16, color: Colors.red),
-                ),
-            Expanded(child: Padding(padding: const EdgeInsets.all(16.0), child: buildGraph(screenWidth, velocityData, pressureData))),
+                ? buildMeasureButton()
+                : const Text(
+              "つながっていません",
+              style: TextStyle(fontSize: 16, color: Colors.red),
+            ),
+            // 計測中のみ「計測を終了して保存」ボタンを表示
+            if (velocityData.isNotEmpty || pressureData.isNotEmpty) buildStopAndSaveButton(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: buildGraph(screenWidth, velocityData, pressureData),
+              ),
+            ),
+            // 過去データを見るボタンを追加
+            buildViewPastDataButton(),
+            SizedBox(height: 20),
           ],
         ),
       ),
