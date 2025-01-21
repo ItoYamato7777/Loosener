@@ -12,6 +12,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // 追加
   await Hive.initFlutter(); // 追加
   Hive.registerAdapter(MeasurementDataAdapter()); // 追加
+
+  // // ▼ 一時的に既存データを削除 これはデータを増やしたときなどに一回実行する必要がある。
+  // await Hive.deleteBoxFromDisk('measurementDataBox');
+
   await Hive.openBox<MeasurementData>('measurementDataBox'); // 追加
 
   FlutterBluePlus.setLogLevel(LogLevel.verbose, color: true);

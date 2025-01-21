@@ -74,7 +74,7 @@ class MeasurementGraphScreen extends StatelessWidget {
     final maxYValue = [
       ...velocityList,
       ...pressureList0,
-      ...pressureList1,
+      //...pressureList1,
     ].reduce((a, b) => a > b ? a : b);
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -84,12 +84,12 @@ class MeasurementGraphScreen extends StatelessWidget {
         title: Text("計測データのグラフ"),
       ),
       body: Center(
-        child: buildGraph(screenWidth, velocityList, pressureList0, maxYValue),
+        child: buildGraph(screenWidth, velocityList, pressureList0,pressureList1, maxYValue),
       ),
     );
   }
 
-  Widget buildGraph(double screenWidth, List<double> velocityList, List<double> pressureList, double maxYValue) {
+  Widget buildGraph(double screenWidth, List<double> velocityList, List<double> pressureList0, List<double> pressureList1, double maxYValue) {
     return SizedBox(
       width: screenWidth * 0.95,
       height: screenWidth * 0.95 * 0.65,
@@ -107,13 +107,23 @@ class MeasurementGraphScreen extends StatelessWidget {
               dotData: FlDotData(show: false),
             ),
             LineChartBarData(
-              spots: pressureList.asMap().entries.map((entry) {
+              spots: pressureList0.asMap().entries.map((entry) {
                 int index = entry.key;
                 double value = entry.value;
                 return FlSpot(index.toDouble(), value);
               }).toList(),
               isCurved: false,
               color: Colors.red,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: pressureList1.asMap().entries.map((entry) {
+                int index = entry.key;
+                double value = entry.value;
+                return FlSpot(index.toDouble(), value);
+              }).toList(),
+              isCurved: false,
+              color: Colors.green,
               dotData: FlDotData(show: false),
             ),
           ],
