@@ -11,11 +11,15 @@ class MeasurementData extends HiveObject {
   List<double> velocityData;
 
   @HiveField(2)
-  List<double> pressureData;
+  List<double> pressureData0;
+
+  @HiveField(3)
+  List<double> pressureData1;
 
   MeasurementData({
     required this.dateTime,
     required this.velocityData,
-    required this.pressureData,
+    required this.pressureData0,
+    required this.pressureData1,
   });
 }

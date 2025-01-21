@@ -69,10 +69,12 @@ class MeasurementGraphScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final velocityList = measurementData.velocityData;
-    final pressureList = measurementData.pressureData;
+    final pressureList0 = measurementData.pressureData0;
+    final pressureList1 = measurementData.pressureData1;
     final maxYValue = [
       ...velocityList,
-      ...pressureList,
+      ...pressureList0,
+      ...pressureList1,
     ].reduce((a, b) => a > b ? a : b);
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -82,7 +84,7 @@ class MeasurementGraphScreen extends StatelessWidget {
         title: Text("計測データのグラフ"),
       ),
       body: Center(
-        child: buildGraph(screenWidth, velocityList, pressureList, maxYValue),
+        child: buildGraph(screenWidth, velocityList, pressureList0, maxYValue),
       ),
     );
   }
