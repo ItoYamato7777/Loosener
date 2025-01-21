@@ -76,9 +76,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
       for (int i = 0; i < dataList.length; i++) {
         if (i % 3 == 0) {
           mod3_0List.add(dataList[i]);
-        } elseif{
+        } else if (int i % 3 == 1){
           mod3_1List.add(dataList[i]);
-        }
+        } else {
           mod3_2List.add(dataList[i]);
       }
       */
